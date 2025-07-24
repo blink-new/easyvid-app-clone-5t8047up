@@ -203,16 +203,22 @@ export default function VideoEditor() {
   const isOldVideo = project.video_url && project.video_url.includes('.html')
   const canGenerate = project.script && project.voice_id && project.template_id && !isGenerating && !isRegenerating
   
-  // Debug logging for button state
-  console.log('Button state debug:', {
+  // Debug logging for button state with actual values
+  console.log('Button state debug with values:', {
     hasScript: !!project.script,
+    scriptValue: project.script ? `"${project.script.substring(0, 50)}..."` : 'NULL/EMPTY',
     hasVoiceId: !!project.voice_id,
+    voiceIdValue: project.voice_id || 'NULL/EMPTY',
     hasTemplateId: !!project.template_id,
+    templateIdValue: project.template_id || 'NULL/EMPTY',
     isGenerating,
     isRegenerating,
     canGenerate,
     isOldVideo
   })
+
+  // Force enable button for testing (temporarily)
+  const forceCanGenerate = true
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -386,14 +392,15 @@ export default function VideoEditor() {
                     onClick={(e) => {
                       console.log('Button clicked! Event:', e)
                       console.log('canGenerate:', canGenerate)
-                      if (canGenerate) {
+                      console.log('forceCanGenerate:', forceCanGenerate)
+                      if (forceCanGenerate) {
                         handleGenerateVideo()
                       } else {
                         console.log('Button is disabled, cannot generate')
                         alert('Button is disabled. Check console for details.')
                       }
                     }}
-                    disabled={!canGenerate}
+                    disabled={!forceCanGenerate}
                     className="w-full"
                     size="lg"
                   >
