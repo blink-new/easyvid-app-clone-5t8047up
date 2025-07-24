@@ -22,7 +22,12 @@ export default function VideoEditor() {
   const [showVideoPlayer, setShowVideoPlayer] = useState(false)
 
   const loadData = useCallback(async () => {
-    if (!id) return
+    if (!id) {
+      console.log('No ID provided to VideoEditor')
+      return
+    }
+    
+    console.log('Loading project with ID:', id)
     
     try {
       const [projectData, templatesData] = await Promise.all([
@@ -30,13 +35,18 @@ export default function VideoEditor() {
         VideoService.getTemplates()
       ])
       
+      console.log('Project data loaded:', projectData)
+      console.log('Templates data loaded:', templatesData)
+      
       setProject(projectData)
       setTemplates(templatesData)
 
       // If project is completed and has video data, load it
       if (projectData?.status === 'completed' && projectData.video_url) {
+        console.log('Loading video data from:', projectData.video_url)
         const data = await VideoService.getVideoData(projectData.video_url)
         if (data) {
+          console.log('Video data loaded:', data)
           setVideoData(data)
         }
       }

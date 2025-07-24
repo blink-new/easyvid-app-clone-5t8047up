@@ -195,9 +195,27 @@ export class VideoService {
   // Get video data for playback
   static async getVideoData(videoUrl: string): Promise<VideoData | null> {
     try {
-      const response = await fetch(videoUrl)
-      const videoData = await response.json()
-      return videoData as VideoData
+      // Check if it's an old HTML format or new JSON format
+      if (videoUrl.endsWith('.html')) {
+        // For old HTML format, create a mock VideoData structure
+        return {
+          audioUrl: '', // No audio URL available for old format
+          images: [
+            'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1024&h=1024&fit=crop',
+            'https://images.unsplash.com/photo-1551434678-e076c223a692?w=1024&h=1024&fit=crop',
+            'https://images.unsplash.com/photo-1553484771-371a605b060b?w=1024&h=1024&fit=crop'
+          ],
+          script: 'This video was created with the previous version. Please regenerate to get the full interactive experience.',
+          voiceId: 'alloy',
+          templateId: 'template_1',
+          duration: 60
+        }
+      } else {
+        // New JSON format
+        const response = await fetch(videoUrl)
+        const videoData = await response.json()
+        return videoData as VideoData
+      }
     } catch (error) {
       console.error('Error fetching video data:', error)
       return null
@@ -231,10 +249,13 @@ export class VideoService {
   // Get project by ID
   static async getProject(id: string): Promise<VideoProject | null> {
     try {
+      // First try to get all projects and filter by ID (more reliable)
       const projects = await blink.db.video_projects.list({
-        where: { id }
+        orderBy: { created_at: 'desc' }
       })
-      return projects[0] as VideoProject || null
+      
+      const project = projects.find(p => p.id === id)
+      return project as VideoProject || null
     } catch (error) {
       console.error('Error fetching project:', error)
       return null
