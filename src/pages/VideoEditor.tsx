@@ -7,9 +7,10 @@ import { Textarea } from '../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Progress } from '../components/ui/progress'
+import { Alert, AlertDescription } from '../components/ui/alert'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { VideoService, AI_VOICES, VideoData } from '../services/videoService'
-import { ArrowLeft, Wand2, Play, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, Wand2, Play, Loader2, CheckCircle, XCircle, RefreshCw, AlertTriangle } from 'lucide-react'
 
 export default function VideoEditor() {
   const { id } = useParams()
@@ -19,7 +20,8 @@ export default function VideoEditor() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
   const [videoData, setVideoData] = useState<VideoData | null>(null)
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false)
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -38,22 +40,35 @@ export default function VideoEditor() {
       console.log('Project data loaded:', projectData)
       console.log('Templates data loaded:', templatesData)
       
+      if (!projectData) {
+        console.error('Project not found')
+        navigate('/dashboard')
+        return
+      }
+      
       setProject(projectData)
       setTemplates(templatesData)
 
       // If project is completed and has video data, load it
       if (projectData?.status === 'completed' && projectData.video_url) {
         console.log('Loading video data from:', projectData.video_url)
-        const data = await VideoService.getVideoData(projectData.video_url)
-        if (data) {
-          console.log('Video data loaded:', data)
-          setVideoData(data)
+        setIsLoadingVideo(true)
+        try {
+          const data = await VideoService.getVideoData(projectData.video_url)
+          if (data) {
+            console.log('Video data loaded:', data)
+            setVideoData(data)
+          }
+        } catch (error) {
+          console.error('Error loading video data:', error)
+        } finally {
+          setIsLoadingVideo(false)
         }
       }
     } catch (error) {
       console.error('Error loading data:', error)
     }
-  }, [id])
+  }, [id, navigate])
 
   useEffect(() => {
     loadData()
@@ -87,7 +102,7 @@ export default function VideoEditor() {
           }
           return prev + 10
         })
-      }, 500)
+      }, 1000)
 
       const data = await VideoService.generateVideo(
         project.id,
@@ -112,6 +127,42 @@ export default function VideoEditor() {
     }
   }
 
+  const handleRegenerateVideo = async () => {
+    if (!project?.id) return
+    
+    setIsRegenerating(true)
+    setGenerationProgress(0)
+    
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 1000)
+
+      const data = await VideoService.regenerateVideo(project.id)
+
+      clearInterval(progressInterval)
+      setGenerationProgress(100)
+      setVideoData(data)
+      
+      // Reload project to get updated status
+      const updatedProject = await VideoService.getProject(project.id)
+      setProject(updatedProject)
+      
+    } catch (error) {
+      console.error('Error regenerating video:', error)
+    } finally {
+      setIsRegenerating(false)
+      setTimeout(() => setGenerationProgress(0), 2000)
+    }
+  }
+
   const handleInputChange = async (field: string, value: string) => {
     try {
       const updatedProject = await VideoService.updateProject(project.id, { [field]: value })
@@ -131,6 +182,9 @@ export default function VideoEditor() {
       </div>
     )
   }
+
+  const isOldVideo = project.video_url && project.video_url.includes('.html')
+  const canGenerate = project.script && project.voice_id && project.template_id && !isGenerating && !isRegenerating
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -179,6 +233,17 @@ export default function VideoEditor() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Panel - Editor */}
           <div className="space-y-6">
+            {/* Old Video Alert */}
+            {isOldVideo && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  This video was created with the previous version and has limited functionality. 
+                  Regenerate it to get the full interactive experience with AI voiceover and controls.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Script Section */}
             <Card>
               <CardHeader>
@@ -266,36 +331,59 @@ export default function VideoEditor() {
               </CardContent>
             </Card>
 
-            {/* Generate Button */}
+            {/* Generate/Regenerate Button */}
             <Card>
               <CardContent className="pt-6">
-                <Button
-                  onClick={handleGenerateVideo}
-                  disabled={!project.script || isGenerating}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating Video...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Generate AI Video
-                    </>
-                  )}
-                </Button>
+                {isOldVideo ? (
+                  <Button
+                    onClick={handleRegenerateVideo}
+                    disabled={!canGenerate}
+                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                    size="lg"
+                  >
+                    {isRegenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Regenerating Video...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Regenerate with New Features
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleGenerateVideo}
+                    disabled={!canGenerate}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating Video...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Generate AI Video
+                      </>
+                    )}
+                  </Button>
+                )}
                 
-                {isGenerating && (
+                {(isGenerating || isRegenerating) && (
                   <div className="mt-4">
                     <Progress value={generationProgress} className="w-full" />
                     <p className="text-sm text-gray-600 mt-2 text-center">
-                      {generationProgress < 30 && "Generating AI voiceover..."}
-                      {generationProgress >= 30 && generationProgress < 60 && "Creating visual content..."}
-                      {generationProgress >= 60 && generationProgress < 90 && "Combining audio and visuals..."}
-                      {generationProgress >= 90 && "Finalizing your video..."}
+                      {generationProgress < 20 && "Generating AI voiceover..."}
+                      {generationProgress >= 20 && generationProgress < 40 && "Creating visual content..."}
+                      {generationProgress >= 40 && generationProgress < 60 && "Processing images..."}
+                      {generationProgress >= 60 && generationProgress < 80 && "Combining audio and visuals..."}
+                      {generationProgress >= 80 && generationProgress < 100 && "Finalizing your video..."}
+                      {generationProgress >= 100 && "Complete! Loading video player..."}
                     </p>
                   </div>
                 )}
@@ -310,8 +398,24 @@ export default function VideoEditor() {
                 <CardTitle>Video Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                {project.status === 'completed' && videoData ? (
+                {isLoadingVideo ? (
+                  <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                      <p className="text-gray-600">Loading video player...</p>
+                    </div>
+                  </div>
+                ) : project.status === 'completed' && videoData ? (
                   <div className="space-y-4">
+                    {isOldVideo && !videoData.audioUrl && (
+                      <Alert className="mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          This is a legacy video with limited features. Audio playback is not available. 
+                          Regenerate to get the full interactive experience.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <VideoPlayer
                       audioUrl={videoData.audioUrl}
                       images={videoData.images}

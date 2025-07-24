@@ -110,36 +110,44 @@ export class VideoService {
   // Generate AI video from script
   static async generateVideo(projectId: string, script: string, voiceId: string, templateId: string): Promise<VideoData> {
     try {
+      console.log('Starting video generation for project:', projectId)
+      
       // Update project status to generating
       await this.updateProject(projectId, { status: 'generating' })
 
       // Generate AI voiceover
+      console.log('Generating AI voiceover...')
       const speechResult = await blink.ai.generateSpeech({
         text: script,
         voice: voiceId as any
       })
+      console.log('Speech generated:', speechResult.url)
 
       // Generate multiple images for the video based on script content
+      console.log('Generating AI images...')
       const imagePrompts = [
-        `Professional business presentation slide with modern design, clean background`,
-        `Corporate office environment with professional lighting`,
-        `Modern technology and innovation concept with sleek design`,
-        `Professional team collaboration in modern workspace`,
-        `Success and growth visualization with charts and graphs`
+        `Professional business presentation slide with modern design, clean background, corporate style`,
+        `Modern office environment with professional lighting, business meeting setup`,
+        `Technology and innovation concept with sleek design, charts and graphs`,
+        `Professional team collaboration in modern workspace, success visualization`,
+        `Growth and success visualization with upward trending charts, professional style`
       ]
 
       const imageResults = await Promise.all(
-        imagePrompts.map(prompt => 
-          blink.ai.generateImage({
+        imagePrompts.map(async (prompt, index) => {
+          console.log(`Generating image ${index + 1}/5...`)
+          return await blink.ai.generateImage({
             prompt,
             size: '1024x1024',
             quality: 'high',
             n: 1
           })
-        )
+        })
       )
+      console.log('All images generated successfully')
 
       // Upload the audio file to storage
+      console.log('Uploading audio to storage...')
       const audioResponse = await fetch(speechResult.url)
       const audioBlob = await audioResponse.blob()
       const audioFile = new File([audioBlob], `audio_${projectId}.mp3`, { type: 'audio/mpeg' })
@@ -149,6 +157,7 @@ export class VideoService {
         `videos/${projectId}/audio.mp3`,
         { upsert: true }
       )
+      console.log('Audio uploaded:', audioUpload.publicUrl)
 
       // Use the first generated image as thumbnail
       const thumbnailUrl = imageResults[0].data[0].url
@@ -167,6 +176,7 @@ export class VideoService {
       }
 
       // Store video data as JSON
+      console.log('Storing video data...')
       const videoDataBlob = new Blob([JSON.stringify(videoData, null, 2)], { type: 'application/json' })
       const videoDataFile = new File([videoDataBlob], `video_${projectId}.json`, { type: 'application/json' })
       
@@ -177,6 +187,7 @@ export class VideoService {
       )
 
       // Update project with results - store the video data URL
+      console.log('Updating project status to completed...')
       await this.updateProject(projectId, {
         status: 'completed',
         video_url: videoDataUpload.publicUrl,
@@ -184,6 +195,7 @@ export class VideoService {
         duration: duration
       })
 
+      console.log('Video generation completed successfully!')
       return videoData
     } catch (error) {
       console.error('Error generating video:', error)
@@ -192,28 +204,38 @@ export class VideoService {
     }
   }
 
-  // Get video data for playback
+  // Get video data for playback - handles both old and new formats
   static async getVideoData(videoUrl: string): Promise<VideoData | null> {
     try {
+      console.log('Loading video data from:', videoUrl)
+      
       // Check if it's an old HTML format or new JSON format
-      if (videoUrl.endsWith('.html')) {
+      if (videoUrl.includes('.html')) {
+        console.log('Old HTML format detected, creating fallback data')
         // For old HTML format, create a mock VideoData structure
         return {
           audioUrl: '', // No audio URL available for old format
           images: [
             'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1024&h=1024&fit=crop',
             'https://images.unsplash.com/photo-1551434678-e076c223a692?w=1024&h=1024&fit=crop',
-            'https://images.unsplash.com/photo-1553484771-371a605b060b?w=1024&h=1024&fit=crop'
+            'https://images.unsplash.com/photo-1553484771-371a605b060b?w=1024&h=1024&fit=crop',
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1024&h=1024&fit=crop',
+            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1024&h=1024&fit=crop'
           ],
-          script: 'This video was created with the previous version. Please regenerate to get the full interactive experience.',
+          script: 'This video was created with the previous version. The audio and interactive features are not available. Please regenerate this video to get the full interactive experience with AI voiceover and controls.',
           voiceId: 'alloy',
           templateId: 'template_1',
           duration: 60
         }
       } else {
         // New JSON format
+        console.log('New JSON format detected, fetching data')
         const response = await fetch(videoUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch video data: ${response.status}`)
+        }
         const videoData = await response.json()
+        console.log('Video data loaded successfully:', videoData)
         return videoData as VideoData
       }
     } catch (error) {
@@ -225,6 +247,7 @@ export class VideoService {
   // Generate script from prompt using AI
   static async generateScript(prompt: string): Promise<string> {
     try {
+      console.log('Generating script for prompt:', prompt)
       const result = await blink.ai.generateText({
         prompt: `Create a compelling video script for: ${prompt}. 
         
@@ -239,6 +262,7 @@ export class VideoService {
         maxTokens: 300
       })
 
+      console.log('Script generated successfully')
       return result.text
     } catch (error) {
       console.error('Error generating script:', error)
@@ -249,12 +273,25 @@ export class VideoService {
   // Get project by ID
   static async getProject(id: string): Promise<VideoProject | null> {
     try {
-      // First try to get all projects and filter by ID (more reliable)
+      console.log('Fetching project with ID:', id)
+      
+      // Get all projects and filter by ID (more reliable than direct query)
       const projects = await blink.db.video_projects.list({
         orderBy: { created_at: 'desc' }
       })
       
       const project = projects.find(p => p.id === id)
+      console.log('Project found:', project ? 'Yes' : 'No')
+      
+      if (project) {
+        console.log('Project details:', {
+          id: project.id,
+          title: project.title,
+          status: project.status,
+          hasVideoUrl: !!project.video_url
+        })
+      }
+      
       return project as VideoProject || null
     } catch (error) {
       console.error('Error fetching project:', error)
@@ -276,6 +313,30 @@ export class VideoService {
     } catch (error) {
       console.error('Error searching projects:', error)
       return []
+    }
+  }
+
+  // Regenerate video for old projects
+  static async regenerateVideo(projectId: string): Promise<VideoData> {
+    try {
+      console.log('Regenerating video for project:', projectId)
+      
+      // Get the project
+      const project = await this.getProject(projectId)
+      if (!project) {
+        throw new Error('Project not found')
+      }
+
+      // Use existing script and settings to regenerate
+      return await this.generateVideo(
+        projectId,
+        project.script || 'Default video content',
+        project.voice_id || 'alloy',
+        project.template_id || 'template_1'
+      )
+    } catch (error) {
+      console.error('Error regenerating video:', error)
+      throw error
     }
   }
 }

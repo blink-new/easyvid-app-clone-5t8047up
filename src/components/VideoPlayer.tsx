@@ -51,7 +51,7 @@ export function VideoPlayer({ audioUrl, images, script, title, duration }: Video
 
   const togglePlay = () => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio || !audioUrl) return
 
     if (isPlaying) {
       audio.pause()
@@ -69,6 +69,8 @@ export function VideoPlayer({ audioUrl, images, script, title, duration }: Video
   }
 
   const downloadAudio = () => {
+    if (!audioUrl) return
+    
     const link = document.createElement('a')
     link.href = audioUrl
     link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_audio.mp3`
@@ -123,6 +125,7 @@ export function VideoPlayer({ audioUrl, images, script, title, duration }: Video
               variant="outline"
               size="sm"
               className="flex items-center gap-2"
+              disabled={!audioUrl}
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               {isPlaying ? 'Pause' : 'Play'}
@@ -146,9 +149,10 @@ export function VideoPlayer({ audioUrl, images, script, title, duration }: Video
             onClick={downloadAudio}
             variant="outline"
             className="w-full flex items-center gap-2"
+            disabled={!audioUrl}
           >
             <Download className="h-4 w-4" />
-            Download Audio Track
+            {audioUrl ? 'Download Audio Track' : 'Audio Not Available'}
           </Button>
         </div>
 
@@ -159,9 +163,11 @@ export function VideoPlayer({ audioUrl, images, script, title, duration }: Video
         </div>
 
         {/* Hidden Audio Element */}
-        <audio ref={audioRef} preload="auto">
-          <source src={audioUrl} type="audio/mpeg" />
-        </audio>
+        {audioUrl && (
+          <audio ref={audioRef} preload="auto">
+            <source src={audioUrl} type="audio/mpeg" />
+          </audio>
+        )}
       </CardContent>
     </Card>
   )
