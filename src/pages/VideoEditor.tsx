@@ -202,6 +202,17 @@ export default function VideoEditor() {
 
   const isOldVideo = project.video_url && project.video_url.includes('.html')
   const canGenerate = project.script && project.voice_id && project.template_id && !isGenerating && !isRegenerating
+  
+  // Debug logging for button state
+  console.log('Button state debug:', {
+    hasScript: !!project.script,
+    hasVoiceId: !!project.voice_id,
+    hasTemplateId: !!project.template_id,
+    isGenerating,
+    isRegenerating,
+    canGenerate,
+    isOldVideo
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -372,7 +383,16 @@ export default function VideoEditor() {
                   </Button>
                 ) : (
                   <Button
-                    onClick={handleGenerateVideo}
+                    onClick={(e) => {
+                      console.log('Button clicked! Event:', e)
+                      console.log('canGenerate:', canGenerate)
+                      if (canGenerate) {
+                        handleGenerateVideo()
+                      } else {
+                        console.log('Button is disabled, cannot generate')
+                        alert('Button is disabled. Check console for details.')
+                      }
+                    }}
                     disabled={!canGenerate}
                     className="w-full"
                     size="lg"
