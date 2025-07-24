@@ -139,14 +139,22 @@ export default function Dashboard() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Video className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                EasyVid
-              </span>
-            </Link>
+            <div className="flex items-center space-x-8">
+              <Link to="/" className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Video className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  EasyVid
+                </span>
+              </Link>
+              
+              <nav className="hidden md:flex space-x-6">
+                <Link to="/dashboard" className="text-indigo-600 font-medium">Dashboard</Link>
+                <Link to="/templates" className="text-gray-600 hover:text-indigo-600 transition-colors">Templates</Link>
+                <Link to="/my-videos" className="text-gray-600 hover:text-indigo-600 transition-colors">My Videos</Link>
+              </nav>
+            </div>
 
             <div className="flex items-center space-x-4">
               <Dialog>

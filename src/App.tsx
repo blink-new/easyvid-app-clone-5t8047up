@@ -4,6 +4,8 @@ import { blink } from './blink/client'
 import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
 import VideoEditor from './pages/VideoEditor'
+import Templates from './pages/Templates'
+import MyVideos from './pages/MyVideos'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -34,18 +36,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route 
-          path="/dashboard" 
-          element={user ? <Dashboard /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/editor" 
-          element={user ? <VideoEditor /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/editor/:id" 
-          element={user ? <VideoEditor /> : <Navigate to="/" replace />} 
-        />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/editor" element={<VideoEditor />} />
+        <Route path="/editor/:id" element={<VideoEditor />} />
+        <Route path="/templates" element={<Templates />} />
+        <Route path="/my-videos" element={<MyVideos />} />
       </Routes>
     </Router>
   )
