@@ -87,12 +87,26 @@ export default function VideoEditor() {
   }
 
   const handleGenerateVideo = async () => {
-    if (!project?.script || !project?.voice_id || !project?.template_id) return
+    console.log('Generate video button clicked!')
+    console.log('Project data:', {
+      id: project?.id,
+      script: project?.script ? 'exists' : 'missing',
+      voice_id: project?.voice_id,
+      template_id: project?.template_id
+    })
+    
+    if (!project?.script || !project?.voice_id || !project?.template_id) {
+      console.log('Missing required fields for video generation')
+      alert('Please ensure you have a script, voice, and template selected before generating the video.')
+      return
+    }
     
     setIsGenerating(true)
     setGenerationProgress(0)
     
     try {
+      console.log('Starting video generation process...')
+      
       // Simulate progress updates
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
@@ -119,8 +133,11 @@ export default function VideoEditor() {
       const updatedProject = await VideoService.getProject(project.id)
       setProject(updatedProject)
       
+      console.log('Video generation completed successfully!')
+      
     } catch (error) {
       console.error('Error generating video:', error)
+      alert('Failed to generate video. Please check the console for details and try again.')
     } finally {
       setIsGenerating(false)
       setTimeout(() => setGenerationProgress(0), 2000)
