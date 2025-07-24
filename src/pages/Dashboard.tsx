@@ -71,7 +71,7 @@ export default function Dashboard() {
       setNewProject({ title: '', script: '', voiceId: 'alloy', templateId: 'template_1' })
       
       // Navigate to editor with the new project
-      navigate(`/editor?project=${project.id}`)
+      navigate(`/editor/${project.id}`)
     } catch (error) {
       console.error('Error creating project:', error)
     } finally {
@@ -423,7 +423,7 @@ export default function Dashboard() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => navigate(`/editor?project=${project.id}`)}
+                            onClick={() => navigate(`/editor/${project.id}`)}
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
@@ -455,13 +455,7 @@ export default function Dashboard() {
                       {project.status === 'completed' && project.video_url && (
                         <Button
                           className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                          onClick={() => {
-                            console.log('Opening video from dashboard:', project.video_url)
-                            const newWindow = window.open(project.video_url, '_blank')
-                            if (!newWindow) {
-                              alert('Please allow popups to view your video')
-                            }
-                          }}
+                          onClick={() => navigate(`/editor/${project.id}`)}
                         >
                           <Play className="h-4 w-4 mr-2" />
                           🎬 Watch AI Video
@@ -472,7 +466,7 @@ export default function Dashboard() {
                         <Button
                           className="w-full mt-4"
                           variant="outline"
-                          onClick={() => navigate(`/editor?project=${project.id}`)}
+                          onClick={() => navigate(`/editor/${project.id}`)}
                         >
                           <FileText className="h-4 w-4 mr-2" />
                           Continue Editing

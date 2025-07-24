@@ -24,6 +24,15 @@ export interface VideoTemplate {
   created_at: string
 }
 
+export interface VideoData {
+  audioUrl: string
+  images: string[]
+  script: string
+  voiceId: string
+  templateId: string
+  duration: number
+}
+
 export const AI_VOICES = [
   { id: 'alloy', name: 'Alloy', description: 'Neutral, balanced voice' },
   { id: 'echo', name: 'Echo', description: 'Clear, professional voice' },
@@ -99,7 +108,7 @@ export class VideoService {
   }
 
   // Generate AI video from script
-  static async generateVideo(projectId: string, script: string, voiceId: string, templateId: string): Promise<string> {
+  static async generateVideo(projectId: string, script: string, voiceId: string, templateId: string): Promise<VideoData> {
     try {
       // Update project status to generating
       await this.updateProject(projectId, { status: 'generating' })
@@ -141,22 +150,23 @@ export class VideoService {
         { upsert: true }
       )
 
-      // Create a simple video by combining images and audio
-      // For now, we'll use the first generated image as a static video thumbnail
-      // In a real implementation, you'd combine multiple images with the audio
+      // Use the first generated image as thumbnail
       const thumbnailUrl = imageResults[0].data[0].url
       
+      // Calculate duration based on script length (more accurate estimation)
+      const duration = Math.ceil(script.length / 15) // ~15 chars per second for speech
+      
       // Create a video data structure that includes all assets
-      const videoData = {
+      const videoData: VideoData = {
         audioUrl: audioUpload.publicUrl,
         images: imageResults.map(result => result.data[0].url),
         script,
         voiceId,
         templateId,
-        duration: Math.ceil(script.length / 15) // More accurate: ~15 chars per second for speech
+        duration
       }
 
-      // Store video data as JSON for now (in real app, this would generate actual MP4)
+      // Store video data as JSON
       const videoDataBlob = new Blob([JSON.stringify(videoData, null, 2)], { type: 'application/json' })
       const videoDataFile = new File([videoDataBlob], `video_${projectId}.json`, { type: 'application/json' })
       
@@ -166,248 +176,31 @@ export class VideoService {
         { upsert: true }
       )
 
-      // Create an interactive HTML video player that combines the assets
-      const videoPlayerHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Generated Video - ${script.substring(0, 50)}...</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .video-container {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            max-width: 800px;
-            width: 100%;
-        }
-        .video-player {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-            margin-bottom: 20px;
-        }
-        .video-slide {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            position: absolute;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-        }
-        .video-slide.active {
-            opacity: 1;
-        }
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .play-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .play-btn:hover {
-            background: #5a67d8;
-        }
-        .progress {
-            flex: 1;
-            height: 4px;
-            background: #e2e8f0;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            background: #667eea;
-            width: 0%;
-            transition: width 0.1s ease;
-        }
-        .time {
-            font-size: 14px;
-            color: #64748b;
-            min-width: 80px;
-        }
-        .script {
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-            margin-bottom: 16px;
-        }
-        .script h3 {
-            margin: 0 0 8px 0;
-            color: #1e293b;
-        }
-        .script p {
-            margin: 0;
-            color: #475569;
-            line-height: 1.6;
-        }
-        .download-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            width: 100%;
-        }
-        .download-btn:hover {
-            background: #059669;
-        }
-    </style>
-</head>
-<body>
-    <div class="video-container">
-        <div class="video-player" id="videoPlayer">
-            ${imageResults.map((result, index) => 
-              `<img src="${result.data[0].url}" alt="Video slide ${index + 1}" class="video-slide ${index === 0 ? 'active' : ''}" id="slide${index}">`
-            ).join('')}
-        </div>
-        
-        <div class="controls">
-            <button class="play-btn" id="playBtn">▶ Play</button>
-            <div class="progress">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-            <div class="time" id="timeDisplay">0:00 / ${Math.floor(videoData.duration / 60)}:${(videoData.duration % 60).toString().padStart(2, '0')}</div>
-        </div>
-        
-        <div class="script">
-            <h3>Video Script</h3>
-            <p>${script}</p>
-        </div>
-        
-        <button class="download-btn" onclick="downloadAudio()">
-            📥 Download Audio Track
-        </button>
-    </div>
-
-    <audio id="audioPlayer" preload="auto">
-        <source src="${audioUpload.publicUrl}" type="audio/mpeg">
-    </audio>
-
-    <script>
-        const audio = document.getElementById('audioPlayer');
-        const playBtn = document.getElementById('playBtn');
-        const progressBar = document.getElementById('progressBar');
-        const timeDisplay = document.getElementById('timeDisplay');
-        const slides = document.querySelectorAll('.video-slide');
-        
-        let isPlaying = false;
-        let currentSlide = 0;
-        const slideDuration = ${videoData.duration} / ${imageResults.length};
-        
-        playBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                audio.pause();
-                playBtn.textContent = '▶ Play';
-                isPlaying = false;
-            } else {
-                audio.play();
-                playBtn.textContent = '⏸ Pause';
-                isPlaying = true;
-                startSlideshow();
-            }
-        });
-        
-        audio.addEventListener('timeupdate', () => {
-            const progress = (audio.currentTime / audio.duration) * 100;
-            progressBar.style.width = progress + '%';
-            
-            const currentTime = Math.floor(audio.currentTime);
-            const totalTime = Math.floor(audio.duration);
-            timeDisplay.textContent = formatTime(currentTime) + ' / ' + formatTime(totalTime);
-        });
-        
-        audio.addEventListener('ended', () => {
-            playBtn.textContent = '▶ Play';
-            isPlaying = false;
-            progressBar.style.width = '0%';
-            currentSlide = 0;
-            showSlide(0);
-        });
-        
-        function startSlideshow() {
-            const slideInterval = setInterval(() => {
-                if (!isPlaying) {
-                    clearInterval(slideInterval);
-                    return;
-                }
-                
-                currentSlide = (currentSlide + 1) % slides.length;
-                showSlide(currentSlide);
-            }, slideDuration * 1000);
-        }
-        
-        function showSlide(index) {
-            slides.forEach((slide, i) => {
-                slide.classList.toggle('active', i === index);
-            });
-        }
-        
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return mins + ':' + secs.toString().padStart(2, '0');
-        }
-        
-        function downloadAudio() {
-            const link = document.createElement('a');
-            link.href = '${audioUpload.publicUrl}';
-            link.download = 'generated_audio.mp3';
-            link.click();
-        }
-    </script>
-</body>
-</html>`
-
-      // Upload the video player HTML
-      const videoPlayerBlob = new Blob([videoPlayerHtml], { type: 'text/html' })
-      const videoPlayerFile = new File([videoPlayerBlob], `video_${projectId}.html`, { type: 'text/html' })
-      
-      const videoPlayerUpload = await blink.storage.upload(
-        videoPlayerFile,
-        `videos/${projectId}/player.html`,
-        { upsert: true }
-      )
-
-      // Update project with results
+      // Update project with results - store the video data URL
       await this.updateProject(projectId, {
         status: 'completed',
-        video_url: videoPlayerUpload.publicUrl,
+        video_url: videoDataUpload.publicUrl,
         thumbnail_url: thumbnailUrl,
-        duration: videoData.duration
+        duration: duration
       })
 
-      return videoPlayerUpload.publicUrl
+      return videoData
     } catch (error) {
       console.error('Error generating video:', error)
       await this.updateProject(projectId, { status: 'failed' })
       throw error
+    }
+  }
+
+  // Get video data for playback
+  static async getVideoData(videoUrl: string): Promise<VideoData | null> {
+    try {
+      const response = await fetch(videoUrl)
+      const videoData = await response.json()
+      return videoData as VideoData
+    } catch (error) {
+      console.error('Error fetching video data:', error)
+      return null
     }
   }
 
